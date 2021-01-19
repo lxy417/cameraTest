@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Photo</title>
+        <style>
+            video {transform: rotateY(180deg);}
+        </style>
+</head>
+<body>
+    <button onclick="showCamera()">开启摄像头</button>
+    <div class="bg-content" style="display: none;">
+        <div class="show-photo">
+            <video id="video" width="600px" height="600px" autoplay="autoplay"></video>
+            <canvas id="canvas" width="600px" height="600px" style="display: none;"></canvas>
+            <a id="downloadA"></a>
+        </div>
+        <div class="take-photo">
+            <button type="button" onclick="takePhoto()">
+                拍照
+            </button>
+        </div>
+        <div class="close-photo">
+            <button type="button" onclick="closePhoto()">
+                关闭
+            </button>
+        </div>
+    </div>
+	<script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js">
+    </script>
+    <script src="./html2canvas.js"></script>
+    <script type="text/javascript">
+        /**
+         * 开启摄像头
+         */
+        let mediaStreamTrack = null; // 视频对象(全局)
+        function showCamera() {
+            $(".bg-content").css("display", "block");
+            let constraints = {
+                video: {width: 600, height: 600},
+                audio: true
+            };
+            //获得video摄像头区域
+            let video = document.getElementById("video");
+            //这里介绍新的方法，返回一个 Promise对象
+            // 这个Promise对象返回成功后的回调函数带一个 MediaStream 对象作为其参数
+            // then()是Promise对象里的方法
+            // then()方法是异步执行，当then()前的方法执行完后再执行then()内部的程序
+            // 避免数据没有获取到
+            let promise = navigator.mediaDevices.getUserMedia(constraints);
+            promise.then(function (MediaStream) {
+                mediaStreamTrack = typeof MediaStream.stop === 'function' ? MediaStream : MediaStream.getTracks()[1];
+                video.srcObject = MediaStream;
+                video.muted = true;
+                video.play();
+            });
+        }
+ 
+        /**
+         * 拍摄照片
+         */
+        function takePhoto() {
+            let video = document.getElementById("video");
+            let canvas = document.getElementById("canvas");
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0,0)
+            ctx.translate(canvas.width, 0)
+            ctx.scale(-1, 1);
+            let img = document.getElementById("canvas").toDataURL("image/png");
+            // var triggerDownload = $("#downloadA").attr("href", img).attr("download", "micro-blog.png");
+            // triggerDownload[0].click();
+            html2canvas(document.getElementById('canvas')).then(canvas=>{
+			    var imgurl = canvas.toBlob((blob)=>{
+			      	//以时间戳作为文件名 实时区分不同文件 按需求自己定义就好
+                    let filename = `${new Date().getTime()}.jpg`;
+                  	//转换canvas图片数据格式为formData
+                    let file2 = new File([blob], filename, {type: 'image/jpg'});
+                    let formData = new FormData();
+                    formData.append('file', file2);
+                    //将转换为formData的canvas图片 上传到服务器
+                    this.axios.post('http://localhost:3000/upload',formData).then(res=>{
+                     //图片上传成功之后，再调用对应的其他接口，传递指定的参数
+	                    if(res.data.state == 200){
+                            console.log(res)
+	                        // this.axios.post('后台接口地址',{
+	                        // 	img:res.data.data,
+	                        // 	type:0
+	                        // }).then(res=>{
+	                        //     console.log(res);
+	                        // })
+	                    }
+                    })
+			    })
+		    });
+
+        }
+ 
+        /**
+         * 关闭摄像头
+         */
+        function closePhoto() {
+            mediaStreamTrack.stop();
+            $(".bg-content").css("display", "none");
+        }
+    </script>
+</body>
+</html>
